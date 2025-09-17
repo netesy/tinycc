@@ -4,9 +4,8 @@
 int main() {
     try {
         CppAssembler::Assembler assembler;
-        assembler.addSourceFile("test_globl.s");
+        assembler.addSourceFile("test_string.s");
         assembler.assemble();
-        std::cout << "Test passed: Assembler ran without errors." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;
         return 1;

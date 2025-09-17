@@ -38,7 +38,12 @@ public:
         c = input.peek();
 
         if (std::isalpha(c) || c == '_') {
-            return read_identifier();
+            Token token = read_identifier();
+            if (input.peek() == ':') {
+                input.get(); // consume the ':'
+                token.type = TokenType::LABEL;
+            }
+            return token;
         }
 
         if (std::isdigit(c)) {

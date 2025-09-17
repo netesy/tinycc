@@ -8,6 +8,7 @@ namespace CppAssembler {
 
 enum class TokenType {
     IDENTIFIER,
+    LABEL,
     NUMBER,
     SYMBOL,
     DIRECTIVE,

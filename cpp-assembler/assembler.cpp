@@ -13,6 +13,7 @@ namespace CppAssembler {
 // A simplified, C++-native Section struct for the refactoring process.
 struct Section {
     std::string name;
+    std::vector<uint8_t> data;
     long data_offset = 0;
 
     Section(const std::string& n) : name(n) {}
@@ -60,7 +61,9 @@ public:
                 break;
             }
 
-            if (token.type == TokenType::DIRECTIVE) {
+            if (token.type == TokenType::LABEL) {
+                add_symbol(token.value, SymbolType::OBJECT, SymbolBinding::LOCAL);
+            } else if (token.type == TokenType::DIRECTIVE) {
                 parse_directive(token, tokenizer);
             } else if (token.type == TokenType::IDENTIFIER) {
                 // This will be handled later (instructions and labels)
@@ -69,8 +72,12 @@ public:
             }
         }
 
-        // For now, we are just parsing directives.
-        // The actual assembly will be implemented later.
+        std::cout << "Finished parsing." << std::endl;
+        std::cout << "Data section size: " << m_data_section->data.size() << std::endl;
+        std::cout << "Symbol table:" << std::endl;
+        for (const auto& pair : m_symbol_table) {
+            std::cout << "  " << pair.second.getName() << std::endl;
+        }
     }
 
 private:
@@ -83,6 +90,10 @@ private:
             use_section(m_bss_section);
         } else if (directive_token.value == ".globl" || directive_token.value == ".global") {
             parse_globl(tokenizer);
+        } else if (directive_token.value == ".string" || directive_token.value == ".asciz") {
+            parse_string(tokenizer, true);
+        } else if (directive_token.value == ".ascii") {
+            parse_string(tokenizer, false);
         } else {
             // Ignoring directive
         }
@@ -92,7 +103,6 @@ private:
         while (true) {
             Token token = tokenizer.next();
             if (token.type != TokenType::IDENTIFIER) {
-                // Not an error, could be end of line
                 break;
             }
             add_symbol(token.value, SymbolType::NOTYPE, SymbolBinding::GLOBAL);
@@ -101,7 +111,29 @@ private:
             if (token.type == TokenType::SYMBOL && token.value == ",") {
                 continue;
             } else {
-                // Assume end of directive
+                break;
+            }
+        }
+    }
+
+    void parse_string(Tokenizer& tokenizer, bool null_terminated) {
+        while (true) {
+            Token token = tokenizer.next();
+            if (token.type != TokenType::STRING) {
+                throw std::runtime_error("Expected string literal after .string/.ascii/.asciz");
+            }
+
+            for (char c : token.value) {
+                emit_byte(static_cast<uint8_t>(c));
+            }
+            if (null_terminated) {
+                emit_byte(0);
+            }
+
+            token = tokenizer.next();
+            if (token.type == TokenType::SYMBOL && token.value == ",") {
+                continue;
+            } else {
                 break;
             }
         }
@@ -118,10 +150,12 @@ private:
     void add_symbol(const std::string& name, SymbolType type, SymbolBinding binding) {
         if (m_symbol_table.find(name) == m_symbol_table.end()) {
             m_symbol_table.emplace(name, Symbol(name, type, binding));
-        } else {
-            // For now, just ignore redefinitions.
-            // In the future, we might want to handle this differently.
         }
+    }
+
+    void emit_byte(uint8_t byte) {
+        m_cur_text_section->data.push_back(byte);
+        m_ind++;
     }
 
     // Sections
